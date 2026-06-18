@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // 🏛️ 이미지(image_e0ea65.png)에 적혀있던 진짜 원본 키 값 그대로 복원 완료
 const SUPABASE_URL = 'https://lnjduracoquhlebzxefb.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInVybCI6Imh0dHBzOi8vbG5qZHVyYWNvcXVoYGVienxlZmIuc3VwYWJhc2UuY28iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0MDQwMDQ5MiwiZXhwIjoyMDU2MDAwNDkyfQ.oR_06HkY_Uvbe_f8Y5Cny_Vw_0iX68AEx-w53X4eOEQ';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuamR1cmFjb3F1cmhsYnp4ZWZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDMwNjgsImV4cCI6MjA5NzI3OTA2OH0.9FM8_VhfEusohvG6JGvss36m10BRj3nCP5qtJk0SWM8';
 
 // 혹시 모를 공백 배제 필터 가동
 const cleanUrl = SUPABASE_URL.replace(/\s/g, '');
