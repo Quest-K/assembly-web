@@ -18,7 +18,14 @@ export async function GET() {
     let updatedCount = 0;
 
     for (const member of members) {
-      const name = member.HG_NM;       
+      name: member.HG_NM,
+      hj_name: member.HJ_NM,          // 한자명
+      birth_date: member.BTH_DATE,    // 생년월일
+      homepage: member.HOMEPAGE,      // 홈페이지
+      office_phone: member.MONA_CD,   // 전화번호
+      secretary: member.SECRETARY,    // 보좌관
+      secretary2: member.SECRETARY2,  // 비서관
+      asist: member.ASIST,            // 비서     
       const district = member.ORIG_NM; 
       const party = member.POLY_NM;    
       const committee = member.CMIT_NM;
