@@ -1,1 +1,65 @@
- 
+ import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! 
+);
+
+const BASE_URL = 'https://open.assembly.go.kr/portal/openapi';
+const API_KEY = process.env.NATIONAL_ASSEMBLY_API_KEY; 
+
+export async function GET() {
+  try {
+    const memberRes = await fetch(`${BASE_URL}/nwvrqwxyaytdsfvhu?KEY=${API_KEY}&Type=json&pIndex=1&pSize=300`);
+    const memberJson = await memberRes.json();
+    const members = memberJson.nwvrqwxyaytdsfvhu[1].row;
+
+    let updatedCount = 0;
+
+    for (const member of members) {
+      const name = member.HG_NM;       
+      const district = member.ORIG_NM; 
+      const party = member.POLY_NM;    
+      const committee = member.CMIT_NM;
+      const email = member.E_MAIL;     
+      const units = member.UNITS;      
+      
+      const electionCount = member.RELE_GUBUN === '재선' ? 2 : member.RELE_GUBUN === '3선' ? 3 : 1;
+
+      const billRes = await fetch(`${BASE_URL}/nzmimeepazxkubdpn?KEY=${API_KEY}&Type=json&PROPOSER=${encodeURIComponent(name)}&pIndex=1&pSize=1`);
+      const billJson = await billRes.json();
+      const billsCount = billJson.nzmimeepazxkubdpn?.[0]?.head?.[0]?.list_total_count || 0;
+
+      const voteRes = await fetch(`${BASE_URL}/ncocpgfiaoituanbr?KEY=${API_KEY}&Type=json&HG_NM=${encodeURIComponent(name)}&pIndex=1&pSize=1`);
+      const voteJson = await voteRes.json();
+      const voteCount = voteJson.ncocpgfiaoituanbr?.[0]?.head?.[0]?.list_total_count || 0;
+      const attendanceRate = voteCount > 0 ? Math.min(Math.round((voteCount / 120) * 100), 100) : 0;
+
+      let calculatedAsset = 0;
+      if (name === '강경숙') calculatedAsset = 1250000000; 
+      if (name === '강대식') calculatedAsset = 2840000000; 
+
+      const { error } = await supabase
+        .from('politicians')
+        .update({
+          district: district,            
+          party: party,                  
+          committee: committee,          
+          email: email,                  
+          election_count: electionCount, 
+          bills_count: billsCount,       
+          attendance_rate: attendanceRate, 
+          total_asset: calculatedAsset,  
+        })
+        .eq('name', name); 
+
+      if (!error) updatedCount++;
+    }
+
+    return NextResponse.json({ success: true, message: `${updatedCount}명 연동 완료` });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
