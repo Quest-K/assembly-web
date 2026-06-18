@@ -3,32 +3,57 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 자물쇠 해제 및 보안 세션 초기화
+// Supabase 인프라 초기화
 const SUPABASE_URL = 'https://lnjduracoquhlebzxefb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInVybCI6Imh0dHBzOi8vbG5qZHVyYWNvcXVo bGVienxlZmIuc3VwYWJhc2UuY28iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0MDQwMDQ5MiwiZXhwIjoyMDU2MDAwNDkyfQ.oR_06HkY_Uvbe_f8Y5Cny_Vw_0iX68AEx-w53X4eOEQ';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export default function Home() {
-  // 🔥 타입 검사기를 완전히 우회하여 무조건 빌드가 성공하도록 any형 배열로 강제 지정합니다.
   const [politicians, setPoliticians] = useState<any>([]);
   const [viewType, setViewType] = useState<string>('card');
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
+  // 🔍 실시간 모니터링을 위한 상태 필드 추가
+  const [debugSteps, setDebugSteps] = useState<string[]>([
+    '⏳ 1단계: 브라우저 렌더링 시작 및 인프라 대기 중...'
+  ]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
+        setErrorMessage(null);
+        
+        setDebugSteps(prev => [...prev, '🔌 2단계: Supabase 원격 서버 접속 시도 중...']);
+        
         // Supabase에서 politicians 테이블 레코드 전체를 긁어옵니다.
         const { data, error } = await supabase
           .from('politicians')
           .select('*')
           .order('name', { ascending: true });
 
-        if (error) throw error;
-        if (data) setPoliticians(data);
+        // 🚨 DB 에러 트래킹 채널 오픈
+        if (error) {
+          setDebugSteps(prev => [...prev, '❌ 3단계 실패: Supabase SQL 호출 과정에서 에러 감지']);
+          throw error;
+        }
+        
+        if (data) {
+          if (data.length === 0) {
+            setDebugSteps(prev => [...prev, '⚠️ 3단계 경고: 서버 연결은 되었으나 테이블에 데이터가 0건입니다 (빈 테이블)']);
+          } else {
+            setDebugSteps(prev => [...prev, `✅ 3단계 성공: 서버 동기화 완료 (수신된 데이터: ${data.length}건)`]);
+          }
+          setPoliticians(data);
+        } else {
+          setDebugSteps(prev => [...prev, '⚠️ 3단계 경고: 응답 데이터(data) 객체가 비어있습니다.']);
+        }
       } catch (err: any) {
         console.error('DB 통신 실패:', err.message);
+        // 화면에 에러 원인 코드 및 상세 메시지 바인딩
+        setErrorMessage(`[에러 감지] 코드: ${err.code || '알수없음'} / 메시지: ${err.message || '네트워크나 키 오류 가능성'}`);
       } finally {
         setLoading(false);
       }
@@ -52,14 +77,6 @@ export default function Home() {
     return acc;
   }, {});
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-50 text-gray-500 font-medium">
-        국회의원 데이터베이스 동기화 중...
-      </div>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-gray-50 pb-12">
       {/* 대시보드 메인 헤더 배너 */}
@@ -72,21 +89,51 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 space-y-6">
         
+        {/* 🚨 실시간 인프라 진단 및 에러 모니터링 현황판 (모바일 디버깅용) */}
+        <section className="bg-slate-900 text-slate-200 p-5 rounded-2xl shadow-md border border-slate-800">
+          <h2 className="text-sm font-mono tracking-wider uppercase font-bold text-emerald-400 mb-3 flex items-center gap-2">
+            ⚡ 실시간 인프라 파이프라인 진단 시스템
+          </h2>
+          <div className="space-y-1.5 font-mono text-xs">
+            {debugSteps.map((step, idx) => (
+              <p key={idx} className="border-l-2 border-emerald-500/30 pl-3 py-0.5">{step}</p>
+            ))}
+            
+            {/* 데이터 로딩 상태 바 */}
+            {loading && (
+              <p className="text-amber-400 animate-pulse pl-3 border-l-2 border-amber-500/30">🔄 현재 실시간 동기화 응답을 대기하고 있습니다...</p>
+            )}
+
+            {/* 에러가 발생했을 경우 화면에 강제 경고창 출력 */}
+            {errorMessage && (
+              <div className="mt-4 p-4 bg-red-950/80 border border-red-800 text-red-200 rounded-xl space-y-1">
+                <p className="font-bold text-red-400 text-sm">🛑 백엔드 연동 장애 발생</p>
+                <p className="text-xs break-all whitespace-pre-wrap">{errorMessage}</p>
+                <p className="text-[10px] text-red-400/70 mt-2 font-sans">💡 팁: RLS 정책 미설정, Supabase URL/KEY 오타, 혹은 테이블명이 politicians가 맞는지 확인이 필요합니다.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* 현황판 섹션: 실시간 정당 목록 및 의원 수 */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">📊 정당별 요약 현황</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {Object.keys(partyStats).map((party) => (
-              <div key={party} className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex justify-between items-center hover:shadow-sm transition-all">
-                <span className="font-bold text-gray-800">{party}</span>
-                <span className="text-sm font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                  {partyStats[party]}명
-                </span>
-              </div>
-            ))}
-          </div>
+          {Object.keys(partyStats).length === 0 ? (
+            <p className="text-xs text-gray-400">연동된 정당 데이터가 존재하지 않습니다.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {Object.keys(partyStats).map((party) => (
+                <div key={party} className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex justify-between items-center hover:shadow-sm transition-all">
+                  <span className="font-bold text-gray-800">{party}</span>
+                  <span className="text-sm font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full">
+                    {partyStats[party]}명
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* 검색 및 뷰 모드 조작 바 */}
@@ -124,7 +171,9 @@ export default function Home() {
 
         {/* 메인 데이터 바인딩 아웃풋 영역 */}
         {filteredPoliticians.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 text-sm">연동된 국회의원 데이터가 없거나 검색 결과가 없습니다.</div>
+          <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-2xl border">
+            {!loading && !errorMessage ? "🎉 DB와 연결은 성공했으나, 출력할 데이터 조건이 없거나 비어있습니다." : "현재 인프라 검증 파이프라인 진행 중..."}
+          </div>
         ) : viewType === 'card' ? (
           /* 카드 디자인 뷰포트 */
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
