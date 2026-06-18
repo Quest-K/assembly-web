@@ -9,7 +9,7 @@ const supabase = createClient(
 const BASE_URL = 'https://open.assembly.go.kr/portal/openapi';
 const API_KEY = process.env.NATIONAL_ASSEMBLY_API_KEY; 
 
-export async function POST() {
+export async function GET() {
   try {
     const memberRes = await fetch(`${BASE_URL}/nwvrqwxyaytdsfvhu?KEY=${API_KEY}&Type=json&pIndex=1&pSize=300`);
     const memberJson = await memberRes.json();
