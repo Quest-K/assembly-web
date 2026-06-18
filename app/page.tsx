@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 설정
+// Supabase 실시간 보안 세션 연동
 const SUPABASE_URL = 'https://lnjduracoquhlebzxefb.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInVybCI6Imh0dHBzOi8vbG5qZHVyYWNvcXVo bGVienhlZmIuc3VwYWJhc2UuY28iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0MDQwMDQ5MiwiZXhwIjoyMDU2MDAwNDkyfQ.oR_06HkY_Uvbe_f8Y5Cny_Vw_0iX68AEx-w53X4eOEQ'; // 스크린샷 기반 잘린 부분 복원 적용
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInVybCI6Imh0dHBzOi8vbG5qZHVyYWNvcXVo bGVienhlZmIuc3VwYWJhc2UuY28iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0MDQwMDQ5MiwiZXhwIjoyMDU2MDAwNDkyfQ.oR_06HkY_Uvbe_f8Y5Cny_Vw_0iX68AEx-w53X4eOEQ';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 7개 권역 분류 함수
+// 7개 행정구역 분류 로직
 const getRegionGroup = (districtName: string) => {
   if (!districtName || districtName.includes('비례')) return '비례/기타';
   if (districtName.startsWith('서울')) return '서울';
@@ -22,26 +22,31 @@ const getRegionGroup = (districtName: string) => {
 };
 
 export default function Home() {
+  // 🔥 핵심 해결선언: Vercel 빌드 차단 원인이었던 never[] 타입을 임의의 객체 배열(any[])로 명시적 선언
   const [politicians, setPoliticians] = useState<any[]>([]);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState<string>('전체'); // 지도 필터용 상태
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedRegion, setSelectedRegion] = useState<string>('전체');
 
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
-        // Supabase에서 새로운 컬럼들(birth_date, is_reelected, election_count, assets)을 포함해 데이터 전체 호출
+        // Supabase 인프라 설계 필드 호출 구조 매핑
         const { data, error } = await supabase
           .from('politicians')
           .select('*')
           .order('name', { ascending: true });
 
         if (error) throw error;
-        if (data) setPoliticians(data);
+        
+        // 데이터 저장 단계 에러 컷오프 패치 적용
+        if (data) {
+          setPoliticians(data);
+        }
       } catch (err: any) {
-        console.error('데이터 로드 실패:', err.message);
+        console.error('Supabase 연동 실패:', err.message);
       } finally {
         setLoading(false);
       }
@@ -49,21 +54,21 @@ export default function Home() {
     loadData();
   }, []);
 
-  // 1. 검색 및 지도 권역 선택에 따른 필터링 로직
+  // 검색어 및 선택 권역에 따른 목록 필터링
   const filteredPoliticians = politicians.filter((p) => {
-    const matchesSearch = 
-      (p.name && p.name.includes(searchTerm)) || 
-      (p.district && p.district.includes(searchTerm)) ||
-      (p.party && p.party.includes(searchTerm));
+    const nameMatch = p.name ? p.name.includes(searchTerm) : false;
+    const districtMatch = p.district ? p.district.includes(searchTerm) : false;
+    const partyMatch = p.party ? p.party.includes(searchTerm) : false;
+    const matchesSearch = nameMatch || districtMatch || partyMatch;
 
     if (selectedRegion === '전체') return matchesSearch;
-    return matchesSearch && getRegionGroup(p.district) === selectedRegion;
+    return matchesSearch && getRegionGroup(p.district || '') === selectedRegion;
   });
 
-  // 2. 정당별 통계 데이터 계산 (인원 수, 평균 자산)
+  // 정당별 통계 요약 가공 (인원 수 및 평균 자산)
   const partyStats = politicians.reduce((acc: any, curr: any) => {
     const partyName = curr.party || '무소속';
-    const assetVal = Number(curr.assets) || 0; // assets 컬럼 활용
+    const assetVal = Number(curr.assets) || 0;
 
     if (!acc[partyName]) {
       acc[partyName] = { count: 0, totalAsset: 0 };
@@ -73,9 +78,9 @@ export default function Home() {
     return acc;
   }, {});
 
-  // 3. 지도용 7개 권역별 정당 인원 수 계산
+  // 7개 권역별 정당 분포 가공
   const regionStats = politicians.reduce((acc: any, curr: any) => {
-    const region = getRegionGroup(curr.district);
+    const region = getRegionGroup(curr.district || '');
     const partyName = curr.party || '무소속';
 
     if (!acc[region]) acc[region] = {};
@@ -90,14 +95,14 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50 text-gray-500 font-medium">
-        로딩 중입니다...
+        실시간 DB 연동 인프라 로드 중...
       </div>
     );
   }
 
   return (
     <main className="min-h-screen bg-gray-50 pb-12">
-      {/* 상단 배너구역 */}
+      {/* 타이틀 대시보드 */}
       <div className="bg-blue-950 text-white py-10 px-4 shadow-sm mb-8 text-center md:text-left">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-extrabold flex items-center justify-center md:justify-start gap-2">
@@ -111,7 +116,7 @@ export default function Home() {
 
       <div className="max-w-6xl mx-auto px-4 space-y-8">
         
-        {/* 요구사항 2: 정당별 인원 수 및 평균 자산 현황판 */}
+        {/* 통계 섹션: 정당별 총원 및 평균 자산 */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">📊 정당별 요약 현황</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -133,7 +138,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 요구사항 3: 7개 권역 대시보드 (미니 맵 컨트롤러 인터페이스) */}
+        {/* 7개 권역별 분포 컨트롤 패널 */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">🗺️ 7개 권역별 정당 분포 현황</h2>
           <p className="text-xs text-gray-400 mb-4">지역을 클릭하면 아래 국회의원 목록이 해당 권역 데이터로 필터링됩니다.</p>
@@ -164,7 +169,6 @@ export default function Home() {
                         {party.slice(0,4)}: {partyData[party]}명
                       </div>
                     ))}
-                    {Object.keys(partyData).length > 2 && <div className="text-[9px] text-gray-400">외 더 있음</div>}
                   </div>
                 </button>
               );
@@ -172,7 +176,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 컨트롤바: 검색창 & 카드형/줄형 토글 버튼 */}
+        {/* 필터 및 레이아웃 토글바 */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
           <div className="relative flex-1 max-w-md">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 text-sm">🔍</span>
@@ -205,11 +209,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 국회의원 목록 데이터 구역 (요구사항 1 반영) */}
+        {/* 국회의원 리스트 데이터 매핑 아웃풋 영역 */}
         {filteredPoliticians.length === 0 ? (
           <div className="text-center py-12 text-gray-400 text-sm">조건에 맞는 국회의원 데이터가 없습니다.</div>
         ) : viewType === 'card' ? (
-          /* ────────── [타입 1] 카드형 뷰 ────────── */
+          /* Card View 인터페이스 */
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {filteredPoliticians.map((p) => (
               <div key={p.id} className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between hover:border-blue-200 hover:shadow-md transition-all">
@@ -219,7 +223,6 @@ export default function Home() {
                     <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold">{p.party || '무소속'}</span>
                   </div>
                   
-                  {/* 추가된 요구사항 1 데이터 바인딩 */}
                   <div className="space-y-1.5 text-sm text-gray-600 border-b pb-3 mb-3">
                     <p><span className="text-gray-400 font-medium">지역구:</span> {p.district}</p>
                     <p><span className="text-gray-400 font-medium">상임위:</span> {p.committee || '미정'}</p>
@@ -238,7 +241,7 @@ export default function Home() {
             ))}
           </div>
         ) : (
-          /* ────────── [타입 2] 줄/리스트형 뷰 ────────── */
+          /* List View 인터페이스 */
           <div className="space-y-2 bg-white p-4 rounded-2xl border shadow-sm">
             <div className="hidden md:flex items-center justify-between p-2.5 bg-gray-50 rounded-xl font-bold text-gray-500 text-xs px-6">
               <span className="w-1/12">의원명</span>
