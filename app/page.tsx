@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 인프라 초기화
-const SUPABASE_URL = 'https://lnjduracoquhlebzxefb.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInVybCI6Imh0dHBzOi8vbG5qZHVyYWNvcXVo bGVienxlZmIuc3VwYWJhc2UuY28iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0MDQwMDQ5MiwiZXhwIjoyMDU2MDAwNDkyfQ.oR_06HkY_Uvbe_f8Y5Cny_Vw_0iX68AEx-w53X4eOEQ';
+// 💡 [치트키 반영] 복사 중 발생한 숨은 공백(\s)과 줄바꿈을 코드가 실행될 때 강제로 제거합니다.
+const RAW_URL = 'https://lnjduracoquhlebzxefb.supabase.co';
+const RAW_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInVybCI6Imh0dHBzOi8vbG5qZHVyYWNvcXVoYGVienxlZmIuc3VwYWJhc2UuY28iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTt0NDQwMDQ5MiwiZXhwIjoyMDU2MDAwNDkyfQ.oR_06HkY_Uvbe_f8Y5Cny_Vw_0iX68AEx-w53X4eOEQ';
+
+const SUPABASE_URL = RAW_URL.replace(/\s/g, '');
+const SUPABASE_KEY = RAW_KEY.replace(/\s/g, '');
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export default function Home() {
@@ -14,7 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // 🔍 실시간 모니터링을 위한 상태 필드 추가
+  // 실시간 모니터링 상태 필드
   const [debugSteps, setDebugSteps] = useState<string[]>([
     '⏳ 1단계: 브라우저 렌더링 시작 및 인프라 대기 중...'
   ]);
@@ -34,7 +37,6 @@ export default function Home() {
           .select('*')
           .order('name', { ascending: true });
 
-        // 🚨 DB 에러 트래킹 채널 오픈
         if (error) {
           setDebugSteps(prev => [...prev, '❌ 3단계 실패: Supabase SQL 호출 과정에서 에러 감지']);
           throw error;
@@ -42,17 +44,14 @@ export default function Home() {
         
         if (data) {
           if (data.length === 0) {
-            setDebugSteps(prev => [...prev, '⚠️ 3단계 경고: 서버 연결은 되었으나 테이블에 데이터가 0건입니다 (빈 테이블)']);
+            setDebugSteps(prev => [...prev, '⚠️ 3단계 경고: 서버 연결은 되었으나 테이블에 데이터가 0건입니다.']);
           } else {
             setDebugSteps(prev => [...prev, `✅ 3단계 성공: 서버 동기화 완료 (수신된 데이터: ${data.length}건)`]);
           }
           setPoliticians(data);
-        } else {
-          setDebugSteps(prev => [...prev, '⚠️ 3단계 경고: 응답 데이터(data) 객체가 비어있습니다.']);
         }
       } catch (err: any) {
         console.error('DB 통신 실패:', err.message);
-        // 화면에 에러 원인 코드 및 상세 메시지 바인딩
         setErrorMessage(`[에러 감지] 코드: ${err.code || '알수없음'} / 메시지: ${err.message || '네트워크나 키 오류 가능성'}`);
       } finally {
         setLoading(false);
@@ -91,7 +90,7 @@ export default function Home() {
 
       <div className="max-w-6xl mx-auto px-4 space-y-6">
         
-        {/* 🚨 실시간 인프라 진단 및 에러 모니터링 현황판 (모바일 디버깅용) */}
+        {/* 실시간 인프라 진단 패널 */}
         <section className="bg-slate-900 text-slate-200 p-5 rounded-2xl shadow-md border border-slate-800">
           <h2 className="text-sm font-mono tracking-wider uppercase font-bold text-emerald-400 mb-3 flex items-center gap-2">
             ⚡ 실시간 인프라 파이프라인 진단 시스템
@@ -100,18 +99,13 @@ export default function Home() {
             {debugSteps.map((step, idx) => (
               <p key={idx} className="border-l-2 border-emerald-500/30 pl-3 py-0.5">{step}</p>
             ))}
-            
-            {/* 데이터 로딩 상태 바 */}
             {loading && (
               <p className="text-amber-400 animate-pulse pl-3 border-l-2 border-amber-500/30">🔄 현재 실시간 동기화 응답을 대기하고 있습니다...</p>
             )}
-
-            {/* 에러가 발생했을 경우 화면에 강제 경고창 출력 */}
             {errorMessage && (
-              <div className="mt-4 p-4 bg-red-950/80 border border-red-800 text-red-200 rounded-xl space-y-1">
+              <div className="mt-4 p-4 bg-red-950/80 border border-red-800 text-red-200 rounded-xl">
                 <p className="font-bold text-red-400 text-sm">🛑 백엔드 연동 장애 발생</p>
                 <p className="text-xs break-all whitespace-pre-wrap">{errorMessage}</p>
-                <p className="text-[10px] text-red-400/70 mt-2 font-sans">💡 팁: RLS 정책 미설정, Supabase URL/KEY 오타, 혹은 테이블명이 politicians가 맞는지 확인이 필요합니다.</p>
               </div>
             )}
           </div>
