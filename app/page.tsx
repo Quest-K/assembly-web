@@ -44,7 +44,7 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // 2. 정당 선택 클릭 및 검색어 필터링 시스템 (먹통 현상 완전 해결)
+  // 2. 정당 선택 클릭 및 검색어 필터링 통합 시스템 (먹통 현상 완전 해결)
   useEffect(() => {
     let result = politicians || [];
 
@@ -65,37 +65,48 @@ export default function Home() {
     setFilteredPoliticians(result);
   }, [selectedParty, searchTerm, politicians]);
 
-  // 3. 에러 방지용 정당 카운트 동적 수집 (Build Failed 원인 제거)
+  // 3. 안전한 정당 카운트 함수
   const getPartyCount = (partyName: string) => {
     if (!politicians) return 0;
     if (partyName === '전체') return politicians.length;
     return politicians.filter((p) => p.party === partyName).length;
   };
 
-  // 노출할 정당 라인업 리스트
-  const partyList = ['전체', '국민의힘', '더불어민주당', '조국혁신당', '개혁신당', '진보당'];
+  // 대표님 화면에 있던 실제 정당 라인업 리스트 구성 (Grid 매칭)
+  const parties = [
+    { name: '전체' },
+    { name: '국민의힘' },
+    { name: '더불어민주당' },
+    { name: '조국혁신당' },
+    { name: '진보당' },
+    { name: '기본소득당' },
+    { name: '개혁신당' },
+    { name: '사회민주당' }
+  ];
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-50 p-4 font-sans text-gray-800">
       
-      {/* 🟢 개선된 정당 선택 영역: 모바일 가로 스크롤 최적화 */}
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-3 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-        {partyList.map((partyName) => {
-          const isSelected = selectedParty === partyName;
+      {/* 📊 정당 선택 영역: 대표님 화면 본연의 깔끔한 2열 Grid 구조 복원 */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {parties.map((pt) => {
+          const isSelected = selectedParty === pt.name;
           return (
             <button
-              key={partyName}
-              onClick={() => setSelectedParty(partyName)}
-              className={`flex-shrink-0 min-w-[95px] p-2.5 rounded-xl border text-center transition-all ${
+              key={pt.name}
+              onClick={() => setSelectedParty(pt.name)}
+              className={`p-3 rounded-xl border transition-all flex justify-between items-center ${
                 isSelected
-                  ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-md'
+                  : 'bg-white text-gray-700 border-gray-100 shadow-sm hover:bg-gray-50'
               }`}
             >
-              <div className="text-xs font-semibold">{partyName}</div>
-              <div className={`text-[11px] mt-0.5 ${isSelected ? 'text-blue-100' : 'text-blue-600 font-bold'}`}>
-                {getPartyCount(partyName)}명
-              </div>
+              <span className="text-xs font-semibold">{pt.name}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                isSelected ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-600'
+              }`}>
+                {getPartyCount(pt.name)}명
+              </span>
             </button>
           );
         })}
@@ -112,7 +123,7 @@ export default function Home() {
         />
       </div>
 
-      {/* 뷰 모드 스위치 버튼 */}
+      {/* 뷰 모드 탭 (카드 상세 뷰 vs 리스트 요약 뷰) */}
       <div className="flex gap-2 mb-4 bg-gray-200/60 p-1 rounded-xl">
         <button
           onClick={() => setViewMode('card')}
@@ -132,9 +143,9 @@ export default function Home() {
         </button>
       </div>
 
-      {/* 4. 데이터 렌더링 컨테이너 */}
+      {/* 4. 메인 데이터 출력 영역 */}
       {viewMode === 'card' ? (
-        /* 📱 카드 상세 뷰 (일부 항목 누락 완벽 해결 버젼) */
+        /* 📱 카드 상세 뷰 (일부 항목 누락 완벽 매핑 해결 버젼) */
         <div className="space-y-3">
           {filteredPoliticians.map((p) => (
             <div key={p.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
