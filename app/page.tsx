@@ -3,17 +3,16 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// 🏛️ 이미지(image_e0ea65.png)에 적혀있던 진짜 원본 키 값 그대로 복원 완료
+// 🏛️ 인프라 정보 선언
 const SUPABASE_URL = 'https://lnjduracoqurhlbzxefb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuamR1cmFjb3F1cmhsYnp4ZWZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDMwNjgsImV4cCI6MjA5NzI3OTA2OH0.9FM8_VhfEusohvG6JGvss36m10BRj3nCP5qtJk0SWM8';
 
-// 혹시 모를 공백 배제 필터 가동
 const cleanUrl = SUPABASE_URL.replace(/\s/g, '');
 const cleanKey = SUPABASE_KEY.replace(/\s/g, '');
 const supabase = createClient(cleanUrl, cleanKey);
 
 export default function Home() {
-  const [politicians, setPoliticians] = useState<any>([]);
+  const [politicians, setPoliticians] = useState<any[]>([]);
   const [viewType, setViewType] = useState<string>('card');
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -156,9 +155,10 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
+                  {/* 💡 [수정] assets 단어를 실제 Supabase 명칭인 total_asset으로 변경하여 데이터 누락 해결 */}
                   <div className="text-sm font-bold text-blue-900 bg-blue-50/50 p-2 rounded-lg flex justify-between">
                     <span>신고 자산:</span>
-                    <span>{p.assets ? `${(Number(p.assets) / 10000).toLocaleString()} 억 원` : '0원'}</span>
+                    <span>{p.total_asset ? `${(Number(p.total_asset) / 10000).toLocaleString()} 억 원` : '0원'}</span>
                   </div>
                 </div>
               </div>
@@ -171,7 +171,8 @@ export default function Home() {
                 <span className="font-bold text-gray-900">{p.name}</span>
                 <span className="text-gray-700">{p.party || '무소속'}</span>
                 <span className="text-gray-600">{p.district || '비례'}</span>
-                <span className="font-semibold text-blue-950">{p.assets ? `${(Number(p.assets) / 10000).toLocaleString()} 억 원` : '0원'}</span>
+                {/* 💡 [수정] 동일하게 total_asset으로 매핑 수정 */}
+                <span className="font-semibold text-blue-950">{p.total_asset ? `${(Number(p.total_asset) / 10000).toLocaleString()} 억 원` : '0원'}</span>
               </div>
             ))}
           </div>
